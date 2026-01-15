@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="author" content="Grzegorz Mystek">
+    <title>Popcat Clicker V2</title>
+<style>
+    html, body {
+        user-select: none;
+        -webkit-user-select: none;
+        
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+    body {
+        margin: 0;
+        height: 100vh;
+        width: 100vw;
+        background: url('popcat.png')center center / cover no-repeat;
+        cursor: pointer;       
+        overflow: hidden;
+    }
+    * {
+        -webkit-touch-callout: none;
+    }
+    .pop{
+        height:50%;
+        width:100000px;
+    }
+    #liczba{
+        text-align:center;
+        font-size:40px;
+    }
+    h1{
+        text-align:center;
+        font-size:60px;
+        color:white;
+        font-family:sans-serif;
+    }
+    #menuCr {
+        position: fixed;      
+        top: 0;
+        right: 0;
+        width: 200px;         
+        height: 100%;         
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    #menuK {
+        position: fixed;      
+        top: 0;
+        left: 0;
+        width: 200px;         
+        height: 100%;         
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+    .none{
+        display: none;
+    }
+    .block{
+        display: block;
+        width: 100%;
+        margin: 5px 0;
+        font-size: 16px;
+        
+    }
+    .reset-btn{
+        background-color:black;
+        color:white;
+        position: absolute;  
+        bottom: 10px;        
+        left: 10px;  
+    }
+
+    .pop-gif {
+        position: absolute;
+        width: 75px;
+        pointer-events: none; 
+        transform: translate(-50%, -50%);
+    }
+    #statystyki{
+        position: fixed;
+        top: 10px;
+        left: 210px;
+    }
+    #staty{
+        background: rgba(0,0,0,50%);
+        color: white; 
+        padding: 15px;
+        margin-top:-32px;
+        margin-left:-10px;
+        display:none;
+    }
+    #przyciski-dla-crytow{
+        display: flex; 
+        justify-content: space-between; 
+        align-items: flex-start; 
+        width: 100%; 
+        margin: 0 auto;
+    }
+    #szanseKryty{
+        color:white;
+        background-color:black;
+    }
+    #menuCm{
+        display:none;
+    }
+</style>
+</head>
+<body>
+    <h1>POPCAT</h1>
+
+    <p id="liczba">0🐱</p>
+
+    <audio src="Pop Cat sound.mp3" id="pop"></audio>
+
+    <div id="menuK">
+        <h3>Ulepszenia Kliknięć</h3>
+        <footer><button class="reset-btn" onclick="resetGame()">Reset gry</button></footer>
+    </div>
+
+    <div id="menuCr">
+        <div id="przyciski-dla-crytow">
+            <button onclick="SzanseKrytow()" id="szanseKryty">Pokaż zwiększenie mnożników krytów</button>
+        </div>
+        <div id="menuCc">
+            
+        </div>
+        <div id="menuCm">
+
+        </div>
+    </div>
+    <div id="statystyki">
+        <button onclick="pokazStaty()" id="sPrzycisk">Otwórz statystyki</button>
+        <div id="staty">
+            <p id="sClicks"></p>
+            <p id="sTotalC"></p>
+            <p id="sCrits"></p>
+            <p id="sCritRate"></p>
+            <p id="sCritMulti"></p>
+            <p id="sBoost"></p>
+            <p id="sTime"></p>
+        </div>
+    </div>
+<script src="funkcje-ulepszenia.js"></script>
+<script>
+let liczbaklikniec = 0;
+let boost = 1;
+let kot = 50;
+let kupioneK = {};
+let kupioneCc = {};
+let kupioneCm = {};
+let critChance = 0; 
+let critMultiplier = 2;
+let stats = {
+    totalClicks: 0,
+    critClicks: 0,
+    totalCatsErned:0,
+    startTime: Date.now()
+};
+let statystykiWidoczne = false;
+let szanseKrytowWidoczne = false;
+const popCatSound = new Audio('Pop Cat sound.mp3');
+
+function saveGame() {
+    const state = {
+        liczbaklikniec,
+        boost,
+        kupioneK,
+        kupioneCc,
+        kupioneCm,
+        critChance,
+        critMultiplier,
+        stats,
+    };
+    localStorage.setItem("popcatSave", JSON.stringify(state));
+}
+
+function loadGame() {
+    const saved = JSON.parse(localStorage.getItem("popcatSave"));
+    if(!saved) return;
+        liczbaklikniec = saved.liczbaklikniec;
+        boost = saved.boost;
+        kupioneK = saved.kupioneK || {};
+        kupioneCc = saved.kupioneCc || {};
+        kupioneCm = saved.kupioneCm || {};
+        critChance = saved.critChance || critChance;
+        critMultiplier = saved.critMultiplier || critMultiplier;
+        stats = saved.stats || stats;
+
+        document.getElementById("liczba").textContent = liczbaklikniec + "🐱";
+
+        for (let id in kupioneK) {
+            if (kupioneK[id]) document.getElementById(id)?.classList.add("none");
+        }
+        for (let id in kupioneCc) {
+            if (kupioneCc[id]) document.getElementById(id)?.classList.add("none");
+        }
+        for (let id in kupioneCm) {
+            if (kupioneCm[id]) document.getElementById(id)?.classList.add("none");
+        }
+    }
+function createButtonsK() {
+    const menuK = document.getElementById("menuK");
+
+    for (let i = 0; i < 30; i++) {
+        const btn = document.createElement("button");
+        let btnNumber = i + 1;
+
+        btn.id = "p" + btnNumber;
+        btn.innerText = "Ulepszenie " + btnNumber + " - " + Number((kot * (btnNumber ** 3.5)).toFixed(0)).toLocaleString() + "🐱";
+        
+        if (kupioneK[btn.id]) {
+            btn.className = "none";   // jeśli przycisk kupiony, ukryj go
+        } else {
+            btn.className = "block";  // jeśli nie, pokaż go
+        }
+        
+
+        menuK.appendChild(btn);
+    }
+}
+
+function createButtonsCchance() {
+    const menuCc = document.getElementById("menuCc");
+    for (let i = 0; i < 10; i++) {
+        const btn = document.createElement("button");
+        let btnNumber = i + 1;
+        btn.id = "cc" + "-" + btnNumber;
+        btn.innerText = "Zwiększenie szansy " + btnNumber + " - " + Number((1000 * (btnNumber ** 3.5)).toFixed(0)).toLocaleString() + "🐱";
+        if (kupioneCc[btn.id]) {
+            btn.className = "none";   // jeśli przycisk kupiony, ukryj go
+        } else {
+            btn.className = "block";  // jeśli nie, pokaż go
+        }
+        menuCc.appendChild(btn);
+    }
+}
+
+function createButtonsCmultiplier() {
+    const menuCm = document.getElementById("menuCm");
+    for (let i = 0; i < 10; i++) {
+        const btn = document.createElement("button");
+        let btnNumber = i + 1;
+        btn.id = "cm" + "-" + btnNumber;
+        btn.innerText = "Zwiększenie mnożnika " + btnNumber + " - " + Number((10000 * (btnNumber ** 2.5)).toFixed(0)).toLocaleString() + "🐱";
+        if (kupioneCm[btn.id]) {
+            btn.className = "none";   // jeśli przycisk kupiony, ukryj go
+        } else {
+            btn.className = "block";  // jeśli nie, pokaż go
+        }
+        menuCm.appendChild(btn);
+    }
+}
+
+function clicker(event) {
+    let gained = boost;
+    stats.totalClicks++;
+
+    if (Math.random() < critChance) {
+        gained *= critMultiplier;
+        stats.critClicks++;
+        showCrit(event.clientX, event.clientY);
+    }
+
+    liczbaklikniec += gained;
+    stats.totalCatsErned += gained;
+    document.getElementById("liczba").textContent = liczbaklikniec + "🐱";
+    saveGame(); 
+}
+
+function showCrit(x, y) {
+    const critText = document.createElement("div");
+    critText.innerText = "CRIT! +" + (boost*critMultiplier) + "🐱";
+    critText.style.position = "absolute";
+    critText.style.left = x + "px";
+    critText.style.top = y + "px";
+    critText.style.color = "yellow";
+    critText.style.fontSize = "24px";
+    critText.style.textShadow = "2px 2px black";
+    critText.style.pointerEvents = "none";
+    document.body.appendChild(critText);
+
+    setTimeout(() => critText.remove(), 55);
+}
+function showPopGif(x, y) {
+    const img = document.createElement("img");
+    img.src = "popcat.gif"; 
+    img.className = "pop-gif";
+
+    img.style.left = x + "px";
+    img.style.top = y + "px";
+
+    document.body.appendChild(img);
+
+    setTimeout(() => {
+        img.remove();
+    }, 50); 
+}
+
+function updateStats() {
+    const sClicks = document.getElementById("sClicks");
+    const sTotalC = document.getElementById("sTotalC");
+    const sCrits = document.getElementById("sCrits");
+    const sCritRate = document.getElementById("sCritRate");
+    const sCritMulti = document.getElementById("sCritMulti");
+    const sBoost = document.getElementById("sBoost");
+    const sTime = document.getElementById("sTime");
+
+    if (!statystykiWidoczne) return;
+
+    const elapsedTime = Date.now() - stats.startTime;
+    const seconds = Math.floor(elapsedTime / 1000) % 60;
+    const minutes = Math.floor(elapsedTime / (1000 * 60)) % 60;
+    const hours = Math.floor(elapsedTime / (1000 * 60 * 60));
+
+    sClicks.textContent = "Zrobione kliknięcia: " + stats.totalClicks.toLocaleString() + "🐱";
+    sTotalC.textContent = "Otrzymane kliknięcia: " + stats.totalCatsErned.toLocaleString() + "🐱";
+    sCrits.textContent = "Otrzymane crit'y: " + stats.critClicks;
+    sCritRate.textContent = "Szansa na crit'a: " + (critChance * 100).toFixed(2) + "%";
+    sCritMulti.textContent = "Mnożnik crit'a: " + critMultiplier + "x";
+    sBoost.textContent = "Aktualny mnożnik: " + boost + "🐱";
+    sTime.textContent = `Start gry ${hours}h ${minutes}m ${seconds}s temu`;
+}
+
+
+function resetGame() {
+    let a = prompt("Aby zresetować grę, wpisz: RESET");
+    if(a && a.toUpperCase() === "RESET") {
+        localStorage.removeItem("popcatSave");
+        liczbaklikniec = 0;
+        boost = 1;
+        critChance = 0;
+        critMultiplier = 2;
+        kupioneK = {};
+        kupioneCc = {};
+        kupioneCm = {};
+        stats = { totalClicks: 0, critClicks: 0, totalCatsErned:0, startTime: Date.now() };
+        document.getElementById("liczba").textContent = liczbaklikniec + "🐱";
+
+        for (let i = 1; i <= 30; i++) {
+            const btn = document.getElementById("p" + i);
+            if (btn) btn.classList.replace("none", "block");
+        }
+        for (let i = 1; i <= 10; i++) {
+            const btn = document.getElementById("cc" + "-" + i);
+            if (btn) btn.classList.replace("none", "block");
+        }
+        for (let i = 1; i <= 10; i++) {
+            const btn = document.getElementById("cm" + "-" + i);
+            if (btn) btn.classList.replace("none", "block");
+        }
+    }
+}
+
+function pokazStaty(){
+    const statsDiv = document.getElementById('staty');
+    const statyPrzycisk = document.getElementById('sPrzycisk');
+
+        statystykiWidoczne = !statystykiWidoczne;
+
+    if(statystykiWidoczne === true){
+        statsDiv.style.display = 'block';
+        statyPrzycisk.textContent = "Zamnij statystyki";
+        
+    }else {
+        statsDiv.style.display = 'none';
+        statyPrzycisk.textContent = "Otwórz statystyki";
+    }
+}
+
+function SzanseKrytow(){
+    const szanseDiv = document.getElementById('menuCc');
+    const mnoznikDiv = document.getElementById('menuCm');
+    const szansePrzycisk = document.getElementById('szanseKryty');
+
+        szanseKrytowWidoczne = !szanseKrytowWidoczne;
+
+    if(szanseKrytowWidoczne === false){
+        szanseDiv.style.display = 'block';
+        mnoznikDiv.style.display = 'none';
+        szansePrzycisk.textContent = "Pokaż zwiększenia mnożników krytów";
+
+    }else{
+        szanseDiv.style.display = 'none';
+        mnoznikDiv.style.display = 'block';
+        szansePrzycisk.textContent = "Pokaż zwiększenia szans kritów"
+
+    }
+}
+
+function playPopCat() {
+    popCatSound.currentTime = 0;
+    popCatSound.play().catch(err => console.log(err));
+}
+document.body.addEventListener("pointerdown", function(event){
+    if(event.target.closest("#menuK")) return; 
+    if(event.target.closest('#menuCr')) return;
+    if(event.target.closest("#statystyki")) return;
+    if(event.target.closest("#przyciski-dla-crytow")) return;
+
+    clicker(event);
+    
+    document.body.style.backgroundImage = "url('popcat-pop.png')";
+    showPopGif(event.clientX, event.clientY);
+
+    playPopCat();
+});
+
+document.body.addEventListener("pointerup", function(){       
+    document.body.style.backgroundImage = "url('popcat.png')";
+});
+
+setInterval(() => {
+    saveGame();
+}, 5000);
+
+setInterval(() => {
+    updateStats()
+}, 1000);   
+
+window.onload = () => {
+    loadGame();
+    createButtonsK();
+    createButtonsCchance();
+    createButtonsCmultiplier();
+    
+for(let i = 1; i <=30; i++){
+    document.getElementById("p" + i).addEventListener("click", window["u" + i]);
+
+}
+
+for(let i = 1; i <=10; i++){
+    document.getElementById("cc" + "-" + i).addEventListener("click", window["uc" + i]);
+
+}
+
+for(let i = 1; i <= 10; i++){
+    document.getElementById("cm" + "-" + i).addEventListener("click", window["um" + i]);
+}
+};
+
+
+</script>
+
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
